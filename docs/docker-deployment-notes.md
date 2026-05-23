@@ -20,7 +20,7 @@
 - 本地开发阶段：MySQL 和 Redis 都必须使用 `/Volumes/LVLIAN_1T/code/ssh-tunnel-config` 这套 SSH 隧道连接真实服务器上的数据。
 - 本地开发阶段：不启动本地 MySQL 容器、不启动本地 Redis 容器、不连接本机已有 MySQL/Redis。
 - 服务器正式部署阶段：部署到真实服务器 `120.236.17.146`，不再通过 SSH 隧道连接数据库和 Redis。
-- 安全要求：不要把 MySQL `3306` 和 Redis `6379` 直接暴露到公网；真实密码不要提交到 Git。
+- 安全要求：不要把 MySQL `3306` 和 Redis `6379` 直接暴露到公网。当前 `yudao-deploy` 是私有部署仓库，按当前约定会提交 `.env.local-tunnel` 和 `.env.server`；如果以后改成公开仓库，必须先移除真实密码。
 
 ## 当前仓库事实
 
@@ -159,7 +159,7 @@ Redis: host.docker.internal:6379
 
 - `docker-compose.local-tunnel.yml`：本机开发使用，连接 SSH 隧道后的 `host.docker.internal:13306` 和 `host.docker.internal:16379`。
 - `docker-compose.server.yml`：服务器正式部署使用，连接服务器本机已有 MySQL/Redis。
-- `.env.*.example`：只放变量名和示例，不放真实密码。
+- `.env.*.example`：只放变量名和示例；当前私有仓库额外提交真实 `.env.local-tunnel` 和 `.env.server`，方便本机与服务器直接复用。
 - `backend/Dockerfile`：可以选择继续沿用“先 Maven 打包，再复制 jar”的方式，也可以改成多阶段 Docker 构建。
 - `frontend/Dockerfile`：Node/pnpm 构建前端，然后复制产物到 Nginx。
 - `frontend/nginx.conf`：提供静态文件，并反代 `/admin-api`、WebSocket 和必要的后端路径到 `server:48080`。
@@ -230,6 +230,11 @@ frontend
 当前实测结果：
 
 ```text
+验证日期: 2026-05-24
+前置检查: 通过
+本地启动脚本: 可用，已有镜像时可直接 --no-build 启动
+前端 http://127.0.0.1:8080: 200 OK
+后端 MySQL/Redis 连接: 已进入初始化阶段，连接可达
 当前远程数据库 Flowable schema: 7.2.0.2
 当前开源后端默认 Flowable: 6.8.1
 最小启用 BPM 后端启动结果: 失败
@@ -288,7 +293,19 @@ mvn -pl yudao-server -am -DskipTests package
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --build
+./scripts/start-local-tunnel-stack.sh
+```
+
+脚本默认使用 `YUDAO_BUILD_IMAGES=auto`。如果本地已经有 `SERVER_IMAGE` 和 `FRONTEND_IMAGE`，直接 `--no-build` 启动；如果本地缺少镜像，才执行 `--build`。代码或 jar 变更后需要强制重建镜像时，可以在确认 Docker Hub 可访问后临时运行：
+
+```bash
+YUDAO_BUILD_IMAGES=true COMPOSE_PULL_POLICY=missing ./scripts/start-local-tunnel-stack.sh
+```
+
+如果只想启动已有镜像，不允许构建：
+
+```bash
+YUDAO_BUILD_IMAGES=false ./scripts/start-local-tunnel-stack.sh
 ```
 
 本地推荐访问：
@@ -346,7 +363,7 @@ Redis: 127.0.0.1:6379
 SPRING_PROFILES_ACTIVE=local
 MASTER_DATASOURCE_URL=jdbc:mysql://host.docker.internal:13306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
 MASTER_DATASOURCE_USERNAME=<从服务器确认>
-MASTER_DATASOURCE_PASSWORD=<不提交到 Git>
+MASTER_DATASOURCE_PASSWORD=<私有部署仓库中可写真实值；公开前必须清理>
 REDIS_HOST=host.docker.internal
 REDIS_PORT=16379
 REDIS_PASSWORD=<如服务器 Redis 无密码则留空>
@@ -358,7 +375,7 @@ REDIS_PASSWORD=<如服务器 Redis 无密码则留空>
 SPRING_PROFILES_ACTIVE=local
 MASTER_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
 MASTER_DATASOURCE_USERNAME=<从服务器确认>
-MASTER_DATASOURCE_PASSWORD=<不提交到 Git>
+MASTER_DATASOURCE_PASSWORD=<私有部署仓库中可写真实值；公开前必须清理>
 REDIS_HOST=host.docker.internal
 REDIS_PORT=6379
 REDIS_PASSWORD=<如服务器 Redis 无密码则留空>
@@ -408,7 +425,7 @@ REDIS_PASSWORD=<如服务器 Redis 无密码则留空>
 - [ ] 本地隧道 compose 的 MySQL 必须连接 `host.docker.internal:13306`。
 - [ ] 本地隧道 compose 的 Redis 必须连接 `host.docker.internal:16379`。
 - [ ] 写入服务器 compose，只启动后端和前端，不启动 MySQL/Redis。
-- [ ] `.env` 示例文件只放变量名和示例地址，不放真实密码。
+- [ ] `.env` 示例文件只放变量名和示例地址；真实 `.env.local-tunnel` 和 `.env.server` 只允许留在当前私有部署仓库。
 
 ### Task 2: 创建后端容器构建入口
 
@@ -453,9 +470,9 @@ mvn -pl yudao-server -am -DskipTests package
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --build
-docker compose -f docker-compose.local-tunnel.yml ps
-docker compose -f docker-compose.local-tunnel.yml logs --tail=120 server
+./scripts/start-local-tunnel-stack.sh
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml ps
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 server
 ```
 
 ### Task 5: 服务器迁移
@@ -464,8 +481,8 @@ docker compose -f docker-compose.local-tunnel.yml logs --tail=120 server
 
 ```bash
 cd /path/to/yudao-deploy
-docker compose --env-file .env.server -f docker-compose.server.yml up -d --build
-docker compose -f docker-compose.server.yml ps
+docker compose --env-file .env.server -f docker-compose.server.yml up -d --build --pull missing
+docker compose --env-file .env.server -f docker-compose.server.yml ps
 ```
 
 - [ ] 服务器 `.env.server` 使用服务器本机 MySQL/Redis 地址。

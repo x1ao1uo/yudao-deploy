@@ -104,7 +104,9 @@ cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 cp .env.local-tunnel.example .env.local-tunnel
 ```
 
-编辑 `.env.local-tunnel`，填入服务器真实 MySQL/Redis 账号密码。不要提交这个文件。
+编辑 `.env.local-tunnel`，填入服务器真实 MySQL/Redis 账号密码。
+
+当前这个 `yudao-deploy` 是私有部署仓库，按当前约定会提交 `.env.local-tunnel` 和 `.env.server`，方便本机与服务器复用同一套部署配置。如果以后要公开这个仓库，必须先删除真实密码并改回只提交 `.env.*.example`。
 
 需要提供哪些值见：
 
@@ -146,17 +148,34 @@ NODE_OPTIONS=--max-old-space-size=2048
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --build
-```
-
-也可以用带前置检查的脚本启动：
-
-```bash
-cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 ./scripts/start-local-tunnel-stack.sh
 ```
 
-这个脚本会先自动确保 SSH 隧道可用，再检查 `.env.local-tunnel`、后端 jar 和 Docker Compose 配置。
+也可以直接使用 compose 启动已有镜像：
+
+```bash
+cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --no-build
+```
+
+`start-local-tunnel-stack.sh` 会先自动确保 SSH 隧道可用，再检查 `.env.local-tunnel`、后端 jar 和 Docker Compose 配置。
+
+脚本默认使用 `YUDAO_BUILD_IMAGES=auto`：
+
+- 如果本地已经有 `SERVER_IMAGE` 和 `FRONTEND_IMAGE`，直接 `--no-build` 启动。
+- 如果本地缺少镜像，才执行 `--build`。
+
+如果代码或 jar 变了，需要强制重建镜像，先确保 Docker Hub 可访问，再运行：
+
+```bash
+YUDAO_BUILD_IMAGES=true COMPOSE_PULL_POLICY=missing ./scripts/start-local-tunnel-stack.sh
+```
+
+如果只想启动已有镜像，不允许构建：
+
+```bash
+YUDAO_BUILD_IMAGES=false ./scripts/start-local-tunnel-stack.sh
+```
 
 访问：
 
@@ -172,6 +191,14 @@ docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml p
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 server
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 frontend
 ```
+
+如果 `server` 反复重启，并且日志包含：
+
+```text
+Could not update Flowable database schema: unknown version from database: '7.2.0.2'
+```
+
+说明 Docker、SSH 隧道、MySQL 和 Redis 都已经走通，真正阻塞点是当前开源后端默认 Flowable `6.8.1` 无法使用服务器已有数据库里的 Flowable `7.2.0.2` schema。
 
 停止：
 
@@ -247,7 +274,7 @@ mvn -pl yudao-server -am -DskipTests package
 
 ```bash
 cd /path/to/yudao-deploy
-docker compose --env-file .env.server -f docker-compose.server.yml up -d --build
+docker compose --env-file .env.server -f docker-compose.server.yml up -d --build --pull missing
 ```
 
 查看状态：
@@ -256,6 +283,17 @@ docker compose --env-file .env.server -f docker-compose.server.yml up -d --build
 docker compose --env-file .env.server -f docker-compose.server.yml ps
 docker compose --env-file .env.server -f docker-compose.server.yml logs --tail=120 server
 ```
+
+## 当前验证结论
+
+2026-05-24 已按本文档跑过本地隧道部署流程：
+
+- 前置检查通过：Docker、SSH 隧道、`.env.local-tunnel`、后端 jar、Compose 配置都可用。
+- `start-local-tunnel-stack.sh` 可以使用已有本地镜像启动 `frontend` 和 `server`。
+- 前端 `http://127.0.0.1:8080` 返回 `200 OK`。
+- 后端启动时已经连上 MySQL 和 Redis，但 Flowable 初始化失败，`server` 会反复重启。
+
+当前还不能称为完整可用部署。阻塞点不是 Docker、Nginx、SSH 隧道、MySQL 密码或 Redis，而是服务器现有数据库 Flowable schema `7.2.0.2` 与当前开源后端默认 Flowable `6.8.1` 不兼容。
 
 ## 重要说明
 
