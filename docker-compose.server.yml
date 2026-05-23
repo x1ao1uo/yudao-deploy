@@ -1,0 +1,56 @@
+name: ${COMPOSE_PROJECT_NAME:-yudao-server}
+
+services:
+  server:
+    container_name: yudao-server
+    image: ${SERVER_IMAGE:-yudao-server:server}
+    build:
+      context: ..
+      dockerfile: yudao-deploy/backend/Dockerfile
+      args:
+        SERVER_JAR: ruoyi-vue-pro/yudao-server/target/yudao-server.jar
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SERVER_BIND_ADDR:-127.0.0.1}:${SERVER_PUBLISHED_PORT:-48080}:48080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      JAVA_OPTS: "${JAVA_OPTS:--Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom}"
+      ARGS: >-
+        --spring.datasource.dynamic.datasource.master.url=${MASTER_DATASOURCE_URL}
+        --spring.datasource.dynamic.datasource.master.username=${MASTER_DATASOURCE_USERNAME}
+        --spring.datasource.dynamic.datasource.master.password=${MASTER_DATASOURCE_PASSWORD}
+        --spring.datasource.dynamic.datasource.slave.url=${SLAVE_DATASOURCE_URL}
+        --spring.datasource.dynamic.datasource.slave.username=${SLAVE_DATASOURCE_USERNAME}
+        --spring.datasource.dynamic.datasource.slave.password=${SLAVE_DATASOURCE_PASSWORD}
+        --spring.redis.host=${REDIS_HOST:-host.docker.internal}
+        --spring.redis.port=${REDIS_PORT:-6379}
+        --spring.redis.database=${REDIS_DATABASE:-0}
+        ${REDIS_PASSWORD_ARG:-}
+    networks:
+      - yudao
+
+  frontend:
+    container_name: yudao-admin
+    image: ${FRONTEND_IMAGE:-yudao-admin:server}
+    build:
+      context: ..
+      dockerfile: yudao-deploy/frontend/Dockerfile
+      args:
+        VITE_BASE_URL: ${FRONTEND_VITE_BASE_URL:-}
+        VITE_API_URL: ${FRONTEND_VITE_API_URL:-/admin-api}
+        VITE_BASE_PATH: ${FRONTEND_VITE_BASE_PATH:-/}
+        VITE_OUT_DIR: ${FRONTEND_VITE_OUT_DIR:-dist-docker}
+        VITE_APP_DEFAULT_LOGIN_TENANT: ${FRONTEND_DEFAULT_LOGIN_TENANT:-南山}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_BIND_ADDR:-127.0.0.1}:${FRONTEND_PUBLISHED_PORT:-18080}:80"
+    depends_on:
+      - server
+    networks:
+      - yudao
+
+networks:
+  yudao:
+    driver: bridge
