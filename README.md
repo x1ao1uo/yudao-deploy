@@ -1,28 +1,47 @@
 # yudao-deploy
 
-这个目录是当前环境专用的 Docker 部署适配层，不修改 `ruoyi-vue-pro` 和 `yudao-ui-admin-vue3` 两个上游仓库。
+这个目录是当前环境专用的 Docker 部署适配层。后端和前端仍然保留在各自上游仓库里，部署、隧道、环境变量和运行文档集中放在这里。
 
-## 部署边界
+## 当前正确基线
 
-- 只部署后端 `yudao-server` 和前端 `yudao-ui-admin-vue3`。
-- 不启动 MySQL 容器。
-- 不启动 Redis 容器。
-- 本地开发必须通过 `/Volumes/LVLIAN_1T/code/ssh-tunnel-config` 访问服务器 MySQL/Redis。
-- 服务器正式部署不使用 SSH 隧道，但后端容器仍然要用宿主机可达地址访问服务器本机 MySQL/Redis。
+后端必须使用 `YunaiV/ruoyi-vue-pro.git` 的 `master-jdk17` 分支，不要使用默认 `master` 分支。
+
+默认 `master` 是 Java 8 / Spring Boot 2.x / Flowable 6.x 方向，和服务器现有 Flowable 7 系列表不匹配。本目录当前按 Java 17 / Spring Boot 3 / Flowable 7.2.0 部署：
+
+```text
+后端分支: master-jdk17
+Java 构建镜像: maven:3.9.9-eclipse-temurin-17
+Java 运行镜像: eclipse-temurin:17-jre
+后端端口: 48080
+前端端口: 8080
+本地数据连接: Docker 内部 ssh-tunnel sidecar
+```
+
+重新克隆后端时使用：
+
+```bash
+cd /Volumes/LVLIAN_1T/yudao
+git clone --branch master-jdk17 --single-branch https://github.com/YunaiV/ruoyi-vue-pro.git ruoyi-vue-pro
+```
 
 ## BPM 启用要求
 
-BPM 不是单独的 Docker 容器，也不是需要额外启动的独立服务。当前单体后端里，BPM 跟随 `yudao-server` 一起启动。
+BPM 不是独立 Docker 容器，跟随 `yudao-server` 一起编译和启动。
 
-重新克隆或更新 `ruoyi-vue-pro` 后，启动 BPM 前必须确认下面两个文件已经打开 BPM 模块：
+重新克隆或更新 `ruoyi-vue-pro` 后，只需要确认两处源码改动：
 
-1. `/Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro/pom.xml`
+```text
+/Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro/pom.xml
+/Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro/yudao-server/pom.xml
+```
+
+根 `pom.xml` 打开：
 
 ```xml
 <module>yudao-module-bpm</module>
 ```
 
-2. `/Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro/yudao-server/pom.xml`
+`yudao-server/pom.xml` 打开：
 
 ```xml
 <dependency>
@@ -39,142 +58,53 @@ cd /Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro
 git diff -- pom.xml yudao-server/pom.xml
 ```
 
-期望只看到 BPM module 和 `yudao-module-bpm` dependency 这两处启用改动。不要为了启用 BPM 顺手修改 Flowable 版本、JDK 版本或部署镜像，除非明确决定做 Flowable/JDK 迁移。
+## 本地 Docker 开发
 
-当前远程数据库里 Flowable schema 是 `7.2.0.2`，而当前开源后端默认 Flowable 是 `6.8.1`。如果按上面的最小改动启用 BPM 并直接连接这套已有数据库，后端会在 Flowable 初始化阶段失败：
+本地开发不启动 MySQL 容器、不启动 Redis 容器，也不要求你先手动启动 Mac 上的 `127.0.0.1:13306` / `127.0.0.1:16379` 隧道。
 
-```text
-Could not update Flowable database schema: unknown version from database: '7.2.0.2'
-```
-
-这个错误说明数据库里的 Flowable 版本比当前开源代码新，不是 Docker 端口、SSH 隧道、MySQL 密码或 Redis 连接问题。
-
-## 本地需要启动哪些
-
-本地 Docker 开发部署只需要启动：
-
-1. SSH 隧道：让本机访问服务器已有 MySQL/Redis。
-2. `server`：后端 `yudao-server` 容器，BPM 跟随它一起启动。
-3. `frontend`：前端 Nginx 容器，提供页面并反代 `/admin-api` 到 `server:48080`。
-
-本地不启动：
-
-- MySQL 容器。
-- Redis 容器。
-- 单独的 BPM 容器。
-
-## 本地开发
-
-### 1. 启动隧道
-
-```bash
-cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-./scripts/ensure-ssh-tunnel.sh
-```
-
-这个脚本会使用 `/Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/ssh_config`，通过 OpenSSH 的 `-fN` 后台模式启动隧道。
-
-如果要手动前台启动，也可以运行：
-
-```bash
-cd /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac
-./start-ssh-tunnel.sh
-```
-
-### 2. 测试隧道
-
-另开一个终端：
-
-```bash
-cd /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac
-./test-ssh-tunnel.sh
-```
-
-本地 Docker 容器使用：
+`docker-compose.local-tunnel.yml` 会启动三个服务：
 
 ```text
-MySQL: host.docker.internal:13306
-Redis: host.docker.internal:16379
+ssh-tunnel: Docker 内部 SSH 隧道，连接服务器 120.236.17.146:2222
+server: Java17 后端 yudao-server
+frontend: Nginx 前端，反代 /admin-api 到 server:48080
 ```
 
-### 3. 准备本地环境变量
-
-```bash
-cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-cp .env.local-tunnel.example .env.local-tunnel
-```
-
-编辑 `.env.local-tunnel`，填入服务器真实 MySQL/Redis 账号密码。
-
-当前这个 `yudao-deploy` 是私有部署仓库，按当前约定会提交 `.env.local-tunnel` 和 `.env.server`，方便本机与服务器复用同一套部署配置。如果以后要公开这个仓库，必须先删除真实密码并改回只提交 `.env.*.example`。
-
-需要提供哪些值见：
+后端容器连接：
 
 ```text
-NEED-INFO.md
+MySQL: ssh-tunnel:3306
+Redis: ssh-tunnel:6379
 ```
 
-### 4. 构建后端 jar
+这两个端口只在 Docker 网络内部使用，不发布到 Mac 或局域网。
 
-```bash
-cd /Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro
-mvn -pl yudao-server -am -DskipTests package
-```
+## 构建后端 Jar
 
-如果本机没有 Maven，可以在部署目录执行 Docker 版构建：
+推荐使用 Docker 版 Maven，避免本机 JDK/Maven 版本不一致：
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 ./scripts/build-backend-jar-with-docker.sh
 ```
 
-确认存在：
+期望产物：
 
 ```text
 /Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro/yudao-server/target/yudao-server.jar
 ```
 
-前端 Dockerfile 已固定使用 `pnpm 9.15.9`，因为当前前端锁文件是 `lockfileVersion: '9.0'`。不要让 Docker 构建直接使用 Corepack 拉取最新 pnpm 大版本，否则可能触发依赖构建脚本拦截策略导致安装失败。
-
-前端 Dockerfile 也固定了：
-
-```text
-NODE_OPTIONS=--max-old-space-size=2048
-```
-
-原因是当前前端 Vite 构建在 Docker Desktop 里可能被系统杀掉并报 `cannot allocate memory`。限制 Node 堆内存可以避免构建进程把 Docker 可用内存打满。
-
-### 5. 启动本地 Docker
+## 启动本地部署
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 ./scripts/start-local-tunnel-stack.sh
 ```
 
-也可以直接使用 compose 启动已有镜像：
+直接使用 compose：
 
 ```bash
-cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --no-build
-```
-
-`start-local-tunnel-stack.sh` 会先自动确保 SSH 隧道可用，再检查 `.env.local-tunnel`、后端 jar 和 Docker Compose 配置。
-
-脚本默认使用 `YUDAO_BUILD_IMAGES=auto`：
-
-- 如果本地已经有 `SERVER_IMAGE` 和 `FRONTEND_IMAGE`，直接 `--no-build` 启动。
-- 如果本地缺少镜像，才执行 `--build`。
-
-如果代码或 jar 变了，需要强制重建镜像，先确保 Docker Hub 可访问，再运行：
-
-```bash
-YUDAO_BUILD_IMAGES=true COMPOSE_PULL_POLICY=missing ./scripts/start-local-tunnel-stack.sh
-```
-
-如果只想启动已有镜像，不允许构建：
-
-```bash
-YUDAO_BUILD_IMAGES=false ./scripts/start-local-tunnel-stack.sh
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --build
 ```
 
 访问：
@@ -188,51 +118,29 @@ YUDAO_BUILD_IMAGES=false ./scripts/start-local-tunnel-stack.sh
 
 ```bash
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml ps
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 ssh-tunnel
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 server
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 frontend
 ```
 
-如果 `server` 反复重启，并且日志包含：
+## Java17 / Spring Boot 3 配置重点
+
+Spring Boot 3 的 Redis 配置要使用 `spring.data.redis.*`。为了兼容，本目录 compose 同时传：
 
 ```text
-Could not update Flowable database schema: unknown version from database: '7.2.0.2'
+--spring.data.redis.host
+--spring.data.redis.port
+--spring.data.redis.database
+--spring.redis.host
+--spring.redis.port
+--spring.redis.database
 ```
 
-说明 Docker、SSH 隧道、MySQL 和 Redis 都已经走通，真正阻塞点是当前开源后端默认 Flowable `6.8.1` 无法使用服务器已有数据库里的 Flowable `7.2.0.2` schema。
-
-停止：
-
-```bash
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml down
-```
-
-## 本地前置检查
-
-```bash
-cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-./scripts/check-local-prereqs.sh
-```
-
-这个脚本会检查：
-
-- Docker 是否可用。
-- SSH 隧道的 `127.0.0.1:13306` 和 `127.0.0.1:16379` 是否可达。
-- `.env.local-tunnel` 是否存在。
-- 后端 `yudao-server.jar` 是否存在。
-- Docker Compose 配置是否能展开。
+只传老的 `spring.redis.*` 会导致 Redisson 仍然尝试连接 `127.0.0.1:6379`。
 
 ## 服务器部署
 
-### 1. 准备服务器环境变量
-
-```bash
-cd /path/to/yudao-deploy
-cp .env.server.example .env.server
-```
-
-编辑 `.env.server`，填入服务器真实 MySQL/Redis 账号密码。
-
-你的服务器部署形态是：
+服务器正式部署不使用 SSH 隧道。你的服务器形态是：
 
 ```text
 后端 yudao-server: Docker 容器
@@ -240,22 +148,14 @@ MySQL: 服务器宿主机 3306
 Redis: 服务器宿主机 6379
 ```
 
-所以 `.env.server` 里不要把数据库地址改成 `127.0.0.1:3306`。在后端容器内部，`127.0.0.1` 指的是容器自己，不是服务器宿主机。默认使用：
+因此 `.env.server` 里不要把数据库地址改成 `127.0.0.1:3306`。在后端容器内部，`127.0.0.1` 是容器自己，不是服务器宿主机。默认使用：
 
 ```text
 MySQL: host.docker.internal:3306
 Redis: host.docker.internal:6379
 ```
 
-只有后端不是 Docker 容器、而是直接跑在服务器宿主机进程里时，才使用 `127.0.0.1:3306` 和 `127.0.0.1:6379`。
-
-默认前端容器只绑定：
-
-```text
-127.0.0.1:18080
-```
-
-服务器已有 Nginx 反代到：
+服务器已有 Nginx 可以反代到前端容器绑定的本机端口：
 
 ```text
 http://127.0.0.1:18080
@@ -263,38 +163,25 @@ http://127.0.0.1:18080
 
 不要把 MySQL `3306` 或 Redis `6379` 开到公网。
 
-### 2. 构建后端 jar
-
-```bash
-cd /path/to/ruoyi-vue-pro
-mvn -pl yudao-server -am -DskipTests package
-```
-
-### 3. 启动服务器 Docker
-
-```bash
-cd /path/to/yudao-deploy
-docker compose --env-file .env.server -f docker-compose.server.yml up -d --build --pull missing
-```
-
-查看状态：
-
-```bash
-docker compose --env-file .env.server -f docker-compose.server.yml ps
-docker compose --env-file .env.server -f docker-compose.server.yml logs --tail=120 server
-```
-
 ## 当前验证结论
 
-2026-05-24 已按本文档跑过本地隧道部署流程：
+2026-05-24 已在本机完成验证：
 
-- 前置检查通过：Docker、SSH 隧道、`.env.local-tunnel`、后端 jar、Compose 配置都可用。
-- `start-local-tunnel-stack.sh` 可以使用已有本地镜像启动 `frontend` 和 `server`。
-- 前端 `http://127.0.0.1:8080` 返回 `200 OK`。
-- 后端启动时已经连上 MySQL 和 Redis，但 Flowable 初始化失败，`server` 会反复重启。
+```text
+后端 Jar: 构建成功
+Jar 内版本: spring-boot-3.5.14, flowable-engine-7.2.0
+Docker 服务: ssh-tunnel, server, frontend 均运行
+MySQL: 后端日志显示 {dataSource-1,master} inited
+Redis: Redisson 4.3.1 初始化成功
+后端启动: Started YudaoServerApplication
+前端: http://127.0.0.1:8080 返回 200 OK
+后端接口: POST http://127.0.0.1:48080/admin-api/system/captcha/get 返回 repCode=0000
+```
 
-当前还不能称为完整可用部署。阻塞点不是 Docker、Nginx、SSH 隧道、MySQL 密码或 Redis，而是服务器现有数据库 Flowable schema `7.2.0.2` 与当前开源后端默认 Flowable `6.8.1` 不兼容。
+详细记录见：
 
-## 重要说明
-
-后端如果跑在 Docker 容器里，`127.0.0.1:3306` 指的是容器自己，不是服务器宿主机。当前配置用 `host.docker.internal` 访问宿主机 MySQL/Redis；`docker-compose.server.yml` 里也加了 `host.docker.internal:host-gateway`，兼容 Linux Docker。
+```text
+docs/docker-deployment-notes.md
+docs/open-source-refresh-reapply-notes.md
+docs/ruoyi-vue-pro-bpm-enable-notes.md
+```

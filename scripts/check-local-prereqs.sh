@@ -9,32 +9,37 @@ ENV_FILE="$DEPLOY_DIR/.env.local-tunnel"
 JAR_FILE="$ROOT_DIR/ruoyi-vue-pro/yudao-server/target/yudao-server.jar"
 failures=0
 
+env_value() {
+  local key="$1"
+  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$ENV_FILE"
+}
+
 echo "检查 Docker..."
 docker --version
 docker compose version
 
 echo
-echo "检查本地隧道端口..."
-if nc -z 127.0.0.1 13306; then
-  echo "MySQL 隧道可达: 127.0.0.1:13306"
-else
-  echo "MySQL 隧道不可达: 127.0.0.1:13306" >&2
-  echo "请先运行: /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/start-ssh-tunnel.sh" >&2
-  failures=$((failures + 1))
-fi
-
-if nc -z 127.0.0.1 16379; then
-  echo "Redis 隧道可达: 127.0.0.1:16379"
-else
-  echo "Redis 隧道不可达: 127.0.0.1:16379" >&2
-  echo "请先运行: /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/start-ssh-tunnel.sh" >&2
-  failures=$((failures + 1))
-fi
-
-echo
 echo "检查环境变量文件..."
 if [[ -f "$ENV_FILE" ]]; then
   echo "已找到: $ENV_FILE"
+  SSH_TUNNEL_KEY_FILE="$(env_value SSH_TUNNEL_KEY_FILE)"
+  SSH_TUNNEL_KNOWN_HOSTS_FILE="$(env_value SSH_TUNNEL_KNOWN_HOSTS_FILE)"
+
+  echo
+  echo "检查 Docker 内部 SSH 隧道所需文件..."
+  if [[ -n "$SSH_TUNNEL_KEY_FILE" && -f "$SSH_TUNNEL_KEY_FILE" ]]; then
+    echo "已找到 SSH 私钥: $SSH_TUNNEL_KEY_FILE"
+  else
+    echo "缺少 SSH 私钥: ${SSH_TUNNEL_KEY_FILE:-未配置}" >&2
+    failures=$((failures + 1))
+  fi
+
+  if [[ -n "$SSH_TUNNEL_KNOWN_HOSTS_FILE" && -f "$SSH_TUNNEL_KNOWN_HOSTS_FILE" ]]; then
+    echo "已找到 known_hosts: $SSH_TUNNEL_KNOWN_HOSTS_FILE"
+  else
+    echo "缺少 known_hosts: ${SSH_TUNNEL_KNOWN_HOSTS_FILE:-未配置}" >&2
+    failures=$((failures + 1))
+  fi
 else
   echo "缺少: $ENV_FILE" >&2
   echo "请执行: cp .env.local-tunnel.example .env.local-tunnel" >&2

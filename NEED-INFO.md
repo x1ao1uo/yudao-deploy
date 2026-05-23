@@ -1,90 +1,42 @@
-# 需要你提供的信息
+# 已确认信息与后续需确认项
 
-这份清单用于把本地 Docker 开发环境真正跑起来。当前约束是：本地 MySQL 和 Redis 都通过 `/Volumes/LVLIAN_1T/code/ssh-tunnel-config` 连接服务器数据，不启动本地 MySQL/Redis 容器。
+这份清单用于记录当前 Docker 部署所需的真实环境信息。
 
-## 现在必须提供
-
-请按下面格式回复，能填多少填多少；不确定就写“不确定”。
+## 已确认
 
 ```text
-MySQL 数据库名：
-MySQL 用户名：
-MySQL 密码：
-Redis 是否有密码：
-Redis 密码：
-Redis DB 编号：
-远程数据库是否已经导入 ruoyi-vue-pro 的 SQL：
-是否确认允许本地后端连接这套真实服务器数据并产生写入：
+后端仓库分支: master-jdk17
+MySQL 数据库名: ruoyi-vue-pro
+MySQL 用户名: root
+MySQL 密码: 已写入 .env.local-tunnel / .env.server
+Redis 密码: 无
+Redis DB 编号: 0
+SSH 隧道端口: 2222
+SSH 用户: Administrator
+SSH 私钥: /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/keys/ssh_tunnel_120_236_17_146
 ```
 
-## 当前本机还缺的运行条件
+## 本地 Docker 数据链路
 
-我已经能构建后端 jar 和前后端 Docker 镜像，也已经启动并验证过 SSH 隧道。当前本地后端可以连到远程 MySQL 端口，但 MySQL 认证失败：
+本地 compose 使用内部 `ssh-tunnel` sidecar，不要求先手动启动 Mac 上的 `127.0.0.1:13306` 和 `127.0.0.1:16379`。
 
 ```text
-Access denied for user 'root'@'localhost'
+server -> ssh-tunnel:3306 -> SSH -> 服务器 127.0.0.1:3306
+server -> ssh-tunnel:6379 -> SSH -> 服务器 127.0.0.1:6379
 ```
 
-所以当前还缺的是服务器 MySQL 的真实用户名和密码。Redis 已确认无密码，当前配置使用 Redis DB `0`。
-
-检查命令：
-
-```bash
-cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-./scripts/check-local-prereqs.sh
-```
-
-## 每一项为什么需要
-
-### MySQL 数据库名
-
-后端默认连接 `ruoyi-vue-pro`。如果服务器上实际库名不同，容器启动后会连错库。
-
-### MySQL 用户名和密码
-
-后端容器启动时必须通过 JDBC 连接远程 MySQL。当前本地容器连接地址固定是：
+本地 `.env.local-tunnel` 应保持：
 
 ```text
-host.docker.internal:13306
+MASTER_DATASOURCE_URL=jdbc:mysql://ssh-tunnel:3306/ruoyi-vue-pro?...
+SLAVE_DATASOURCE_URL=jdbc:mysql://ssh-tunnel:3306/ruoyi-vue-pro?...
+REDIS_HOST=ssh-tunnel
+REDIS_PORT=6379
 ```
-
-这个地址来自 SSH 隧道：
-
-```text
-127.0.0.1:13306 -> 服务器 127.0.0.1:3306
-```
-
-### Redis 密码和 DB 编号
-
-后端需要 Redis 保存缓存、登录态、验证码等运行数据。当前本地容器连接地址固定是：
-
-```text
-host.docker.internal:16379
-```
-
-这个地址来自 SSH 隧道：
-
-```text
-127.0.0.1:16379 -> 服务器 127.0.0.1:6379
-```
-
-如果 Redis 没有密码，写“无密码”。如果不确定 DB 编号，一般先用 `0`。
-
-### 远程数据库是否已经导入 SQL
-
-如果远程 MySQL 里还没有 `ruoyi-vue-pro` 的表结构和初始数据，后端会启动失败或登录不了。项目 SQL 通常在：
-
-```text
-/Volumes/LVLIAN_1T/yudao/ruoyi-vue-pro/sql/mysql/ruoyi-vue-pro.sql
-```
-
-### 是否允许写入真实服务器数据
-
-本地后端连的是服务器真实 MySQL/Redis。启动后可能产生登录日志、缓存、定时任务记录等写入。如果这套库是生产数据，建议先确认备份，或者单独建测试库。
 
 ## 后续服务器部署前再确认
 
-这些不是本地跑通的立即阻塞项，但后续上服务器前需要确认：
+这些不是当前本地跑通的阻塞项，但上服务器前需要确认：
 
 ```text
 服务器 Docker 运行位置：Windows Docker Desktop / WSL Docker / Linux Docker
@@ -93,3 +45,12 @@ host.docker.internal:16379
 服务器前端容器内网端口是否使用 18080：
 服务器是否只保留公网 HTTP/HTTPS/SSH，不开放 3306/6379：
 ```
+
+服务器正式部署不走 SSH 隧道。后端容器访问服务器宿主机 MySQL/Redis 时，默认使用：
+
+```text
+MySQL: host.docker.internal:3306
+Redis: host.docker.internal:6379
+```
+
+只有后端直接跑在服务器宿主机进程里，而不是 Docker 容器里时，才使用 `127.0.0.1:3306` 和 `127.0.0.1:6379`。
