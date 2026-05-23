@@ -70,6 +70,9 @@ server: Java17 后端 yudao-server
 frontend: Nginx 前端，反代 /admin-api 到 server:48080
 ```
 
+`frontend/nginx.conf` 会挂载到前端容器的 `/etc/nginx/conf.d/default.conf`。
+Nginx 通过 Docker DNS `127.0.0.11` 动态解析 `server:48080`，避免后端容器重建后继续代理到旧 IP 导致 502。
+
 后端容器连接：
 
 ```text
@@ -176,6 +179,8 @@ Redis: Redisson 4.3.1 初始化成功
 后端启动: Started YudaoServerApplication
 前端: http://127.0.0.1:8080 返回 200 OK
 后端接口: POST http://127.0.0.1:48080/admin-api/system/captcha/get 返回 repCode=0000
+前端代理: GET http://127.0.0.1:8080/admin-api/system/dict-data/simple-list 返回 200 + 未登录 JSON，不再 502
+浏览器巡检: 57/57 个真实菜单页面打开成功，控制台错误 0
 ```
 
 详细记录见：

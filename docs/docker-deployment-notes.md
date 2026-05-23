@@ -45,6 +45,9 @@ server: Java17 后端 yudao-server，监听 48080
 frontend: Nginx 前端，监听 8080
 ```
 
+前端容器会挂载 `frontend/nginx.conf` 到 `/etc/nginx/conf.d/default.conf`。
+配置里使用 Docker DNS `127.0.0.11` 动态解析 `server:48080`；不要改回静态 `proxy_pass http://server:48080/...`，否则后端容器重建后 Nginx 可能继续使用旧 IP，表现为大量 502。
+
 本地不启动：
 
 ```text
@@ -216,6 +219,11 @@ Docker 镜像构建: 成功
   Started YudaoServerApplication
 前端:
   curl -I http://127.0.0.1:8080/ -> 200 OK
+  GET http://127.0.0.1:8080/admin-api/system/dict-data/simple-list -> 200 + {"code":401,...}
 后端:
   POST http://127.0.0.1:48080/admin-api/system/captcha/get -> repCode=0000
+浏览器巡检:
+  57/57 个真实菜单页面打开成功
+  Nginx 无 500/502/503/504 或 upstream 连接失败
+  后端无 SQL 字段缺失、Flowable、Redis 连接类硬错误
 ```

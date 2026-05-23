@@ -47,6 +47,8 @@ services:
         VITE_OUT_DIR: ${FRONTEND_VITE_OUT_DIR:-dist-docker}
         VITE_APP_DEFAULT_LOGIN_TENANT: ${FRONTEND_DEFAULT_LOGIN_TENANT:-南山}
     restart: unless-stopped
+    volumes:
+      - "./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro"
     ports:
       - "${FRONTEND_BIND_ADDR:-127.0.0.1}:${FRONTEND_PUBLISHED_PORT:-18080}:80"
     depends_on:
