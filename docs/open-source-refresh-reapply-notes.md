@@ -56,46 +56,71 @@ git diff -- pom.xml yudao-server/pom.xml
 </dependency>
 ```
 
-## 2. 前端：隐藏 BPM 页面顶部“工作流手册”提示
+## 2. 前端：隐藏所有 doc-alert 文档提示
 
-用户要求隐藏每个相关工作流界面顶部这条文档提示：
+用户要求隐藏所有页面顶部的文档提示，标签形态包括单行和多行：
 
 ```vue
 <doc-alert title="工作流手册" url="https://doc.iocoder.cn/bpm/" />
-```
 
-当前定位到 6 个位置：
-
-```text
-src/views/bpm/model/definition/index.vue
-src/views/bpm/category/index.vue
-src/views/bpm/group/index.vue
-src/views/bpm/task/manager/index.vue
-src/views/bpm/processInstance/report/index.vue
-src/views/bpm/processInstance/manager/index.vue
+<doc-alert
+  title="审批转办、委派、抄送"
+  url="https://doc.iocoder.cn/bpm/task-delegation-and-cc/"
+/>
 ```
 
 推荐改法：
 
 ```vue
 <!-- <doc-alert title="工作流手册" url="https://doc.iocoder.cn/bpm/" /> -->
+
+<!-- <doc-alert
+  title="审批转办、委派、抄送"
+  url="https://doc.iocoder.cn/bpm/task-delegation-and-cc/"
+/> -->
 ```
 
-不要改全局 `doc-alert` 组件，也不要删除其它更具体的 BPM 文档提示。
+不要改全局 `doc-alert` 组件；只注释调用处。当前实测共有 `270` 个 `doc-alert` 标签，均已注释。
 
 检查：
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-ui-admin-vue3
-rg -n '^\s*<doc-alert title="工作流手册" url="https://doc\.iocoder\.cn/bpm/"' src/views/bpm -S
-rg -n '<!--\s*<doc-alert title="工作流手册" url="https://doc\.iocoder\.cn/bpm/"' src/views/bpm -S
+node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const root = 'src';
+const tagRe = /<doc-alert\b[\s\S]*?\/>/g;
+function walk(dir, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(p, out);
+    else if (entry.isFile() && ['.vue', '.ts', '.tsx'].includes(path.extname(entry.name))) out.push(p);
+  }
+  return out;
+}
+function inComment(text, index) {
+  const open = text.lastIndexOf('<!--', index);
+  const close = text.lastIndexOf('-->', index);
+  return open !== -1 && open > close;
+}
+let total = 0;
+let bare = [];
+for (const file of walk(root)) {
+  const text = fs.readFileSync(file, 'utf8');
+  for (const m of text.matchAll(tagRe)) {
+    total++;
+    if (!inComment(text, m.index)) bare.push(file);
+  }
+}
+console.log({ total, bareCount: bare.length });
+NODE
 ```
 
 期望：
 
 ```text
-未注释命令: 无输出
-已注释命令: 6 条
+{ total: 270, bareCount: 0 }
 ```
 
 ## 3. 部署层：Java17 和 Docker 隧道
@@ -145,7 +170,7 @@ docker-compose.server.yml:
 1. 克隆后端 `master-jdk17`。
 2. 同步或克隆前端。
 3. 打开后端 BPM module 和 server dependency。
-4. 注释前端 6 个“工作流手册”提示。
+4. 注释前端全部 `doc-alert` 文档提示。
 5. 在 `yudao-deploy` 构建后端 jar。
 6. 启动本地 Docker compose。
 7. 检查 `ssh-tunnel`、`server`、`frontend` 都为 Up。
@@ -161,7 +186,7 @@ cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml ps
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 server
 
-curl -I http://127.0.0.1:8080/
+curl -I http://127.0.0.1:2828/
 curl -sS -X POST http://127.0.0.1:48080/admin-api/system/captcha/get \
   -H 'tenant-id: 1' \
   -H 'Content-Type: application/json' \
@@ -174,7 +199,7 @@ curl -sS -X POST http://127.0.0.1:48080/admin-api/system/captcha/get \
 前端 200 OK
 后端 captcha/get 返回 repCode=0000
 前端代理 /admin-api/system/dict-data/simple-list 返回 200 + 未登录 JSON，不再 502
-真实浏览器菜单巡检 57/57 通过，控制台错误 0
+真实浏览器菜单巡检 57/57 通过，控制台错误 0，页面异常 0，站内 5xx 响应 0，doc-alert 文档提示文本残留 0
 ```
 
 `repCode=0000` 表示后端、MySQL、Redis、验证码缓存链路都已经可用。

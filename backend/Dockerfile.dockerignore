@@ -1,0 +1,6 @@
+*
+
+!ruoyi-vue-pro/
+!ruoyi-vue-pro/yudao-server/
+!ruoyi-vue-pro/yudao-server/target/
+!ruoyi-vue-pro/yudao-server/target/yudao-server.jar

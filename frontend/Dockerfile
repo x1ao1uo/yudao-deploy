@@ -5,7 +5,8 @@ WORKDIR /app
 ARG PNPM_VERSION=9.15.9
 RUN corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
-ENV NODE_OPTIONS=--max-old-space-size=2048
+ARG FRONTEND_NODE_OPTIONS=--max-old-space-size=1536
+ENV NODE_OPTIONS=${FRONTEND_NODE_OPTIONS}
 
 COPY yudao-ui-admin-vue3/package.json yudao-ui-admin-vue3/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -17,6 +18,7 @@ ARG VITE_API_URL=/admin-api
 ARG VITE_BASE_PATH=/
 ARG VITE_OUT_DIR=dist-docker
 ARG VITE_APP_DEFAULT_LOGIN_TENANT=
+ARG FRONTEND_VITE_BUILD_EXTRA_ARGS=--minify esbuild
 
 RUN printf '%s\n' \
     'NODE_ENV=production' \
@@ -31,7 +33,7 @@ RUN printf '%s\n' \
     'VITE_SOURCEMAP=false' \
     > .env.docker
 
-RUN pnpm exec vite build --mode docker
+RUN pnpm exec vite build --mode docker ${FRONTEND_VITE_BUILD_EXTRA_ARGS}
 
 FROM nginx:1.27-alpine
 

@@ -46,11 +46,13 @@ services:
         VITE_BASE_PATH: ${FRONTEND_VITE_BASE_PATH:-/}
         VITE_OUT_DIR: ${FRONTEND_VITE_OUT_DIR:-dist-docker}
         VITE_APP_DEFAULT_LOGIN_TENANT: ${FRONTEND_DEFAULT_LOGIN_TENANT:-南山}
+        FRONTEND_NODE_OPTIONS: ${FRONTEND_NODE_OPTIONS}
+        FRONTEND_VITE_BUILD_EXTRA_ARGS: ${FRONTEND_VITE_BUILD_EXTRA_ARGS}
     restart: unless-stopped
     volumes:
       - "./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro"
     ports:
-      - "${FRONTEND_BIND_ADDR:-127.0.0.1}:${FRONTEND_PUBLISHED_PORT:-18080}:80"
+      - "${FRONTEND_BIND_ADDR:-0.0.0.0}:${FRONTEND_PUBLISHED_PORT:-2828}:80"
     depends_on:
       - server
     networks:

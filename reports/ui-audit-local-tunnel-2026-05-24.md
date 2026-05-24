@@ -5,9 +5,12 @@
 ## 结论
 
 - 登录方式：租户“南山”，用户 `admin`。
-- 巡检范围：后端 `/system/auth/get-permission-info` 返回的 57 个可见菜单页面。
+- 巡检范围：复用正式菜单巡检中的 57 个可见菜单页面，当前入口为 `http://127.0.0.1:2828`。
 - 浏览器结果：57/57 页面打开成功。
 - 浏览器控制台错误：0。
+- 页面异常：0。
+- 站内 5xx 响应：0。
+- `doc-alert` 文档提示文本残留：0。
 - Nginx 日志：巡检期间无 `500` / `502` / `503` / `504`，无 `connect() failed`，无 upstream 解析失败。
 - 后端日志：巡检期间无 SQL 字段缺失、表缺失、Flowable、Redis 连接类硬错误。
 
@@ -33,7 +36,7 @@ upstream: "http://172.21.0.2:48080/..."
 
 ```bash
 curl -sS -o /tmp/yudao-proxy.out -w '%{http_code}\n' \
-  http://127.0.0.1:8080/admin-api/system/dict-data/simple-list
+  http://127.0.0.1:2828/admin-api/system/dict-data/simple-list
 
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --since "$SINCE" frontend \
   | rg '" (500|502|503|504) |connect\(\) failed|no live upstreams|host not found in upstream' || true
@@ -44,5 +47,5 @@ docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml l
 
 ## 证据文件
 
-- JSON 报告：`reports/ui-audit-local-tunnel-2026-05-23T18-52-26-748Z.json`
-- 首页截图：`reports/ui-audit-2026-05-23T18-52-26-748Z-home.png`
+- JSON 报告：`reports/ui-audit-local-tunnel-2026-05-24T02-49-56-042Z.json`
+- 截图：`reports/ui-audit-2026-05-24T02-49-56-042Z-home.png`

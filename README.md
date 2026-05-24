@@ -13,7 +13,7 @@
 Java 构建镜像: maven:3.9.9-eclipse-temurin-17
 Java 运行镜像: eclipse-temurin:17-jre
 后端端口: 48080
-前端端口: 8080
+前端入口端口: 2828
 本地数据连接: Docker 内部 ssh-tunnel sidecar
 ```
 
@@ -70,8 +70,14 @@ server: Java17 后端 yudao-server
 frontend: Nginx 前端，反代 /admin-api 到 server:48080
 ```
 
+本地访问入口是 `127.0.0.1:2828`。服务器访问入口是 `服务器IP:2828`。
+
 `frontend/nginx.conf` 会挂载到前端容器的 `/etc/nginx/conf.d/default.conf`。
 Nginx 通过 Docker DNS `127.0.0.11` 动态解析 `server:48080`，避免后端容器重建后继续代理到旧 IP 导致 502。
+
+构建上下文是 `/Volumes/LVLIAN_1T/yudao`，但部署仓提供了 `frontend/Dockerfile.dockerignore` 和 `backend/Dockerfile.dockerignore`。
+不要删除这两个文件，否则 Docker 会把前端 `node_modules`、`.git` 等大目录送进构建上下文，前端构建容易内存不足，也可能把本机依赖覆盖到 Linux 容器里。
+前端 Docker 构建默认使用 `FRONTEND_NODE_OPTIONS=--max-old-space-size=1536` 和 `FRONTEND_VITE_BUILD_EXTRA_ARGS=--minify esbuild`，用于降低容器内生产构建的内存压力。
 
 后端容器连接：
 
@@ -113,7 +119,7 @@ docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml u
 访问：
 
 ```text
-前端: http://127.0.0.1:8080
+前端: http://127.0.0.1:2828
 后端: http://127.0.0.1:48080
 ```
 
@@ -158,10 +164,11 @@ MySQL: host.docker.internal:3306
 Redis: host.docker.internal:6379
 ```
 
-服务器已有 Nginx 可以反代到前端容器绑定的本机端口：
+服务器部署时，前端容器发布 `0.0.0.0:2828` 作为唯一外部入口，容器内 Nginx 会把 `/admin-api`、`/app-api` 等接口代理到 Docker 内部 `server:48080`。
+后端 `48080` 默认只绑定 `127.0.0.1`，不作为公网入口。
 
 ```text
-http://127.0.0.1:18080
+http://服务器IP:2828
 ```
 
 不要把 MySQL `3306` 或 Redis `6379` 开到公网。
@@ -174,13 +181,14 @@ http://127.0.0.1:18080
 后端 Jar: 构建成功
 Jar 内版本: spring-boot-3.5.14, flowable-engine-7.2.0
 Docker 服务: ssh-tunnel, server, frontend 均运行
+前端 Docker 镜像: 构建成功，使用 Dockerfile.dockerignore 排除 node_modules/.git，使用 esbuild 压缩
 MySQL: 后端日志显示 {dataSource-1,master} inited
 Redis: Redisson 4.3.1 初始化成功
 后端启动: Started YudaoServerApplication
-前端: http://127.0.0.1:8080 返回 200 OK
+前端: http://127.0.0.1:2828 返回 200 OK
 后端接口: POST http://127.0.0.1:48080/admin-api/system/captcha/get 返回 repCode=0000
-前端代理: GET http://127.0.0.1:8080/admin-api/system/dict-data/simple-list 返回 200 + 未登录 JSON，不再 502
-浏览器巡检: 57/57 个真实菜单页面打开成功，控制台错误 0
+前端代理: GET http://127.0.0.1:2828/admin-api/system/dict-data/simple-list 返回 200 + 未登录 JSON，不再 502
+浏览器巡检: 57/57 个真实菜单页面打开成功，控制台错误 0，页面异常 0，站内 5xx 响应 0，doc-alert 文档提示文本残留 0
 ```
 
 详细记录见：

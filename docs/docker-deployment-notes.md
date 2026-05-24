@@ -42,11 +42,30 @@ server   -> ssh-tunnel:6379 -> SSH -> 服务器 127.0.0.1:6379
 ```text
 ssh-tunnel: 内部 SSH 隧道，不发布端口
 server: Java17 后端 yudao-server，监听 48080
-frontend: Nginx 前端，监听 8080
+frontend: Nginx 前端，发布 2828
 ```
 
 前端容器会挂载 `frontend/nginx.conf` 到 `/etc/nginx/conf.d/default.conf`。
 配置里使用 Docker DNS `127.0.0.11` 动态解析 `server:48080`；不要改回静态 `proxy_pass http://server:48080/...`，否则后端容器重建后 Nginx 可能继续使用旧 IP，表现为大量 502。
+
+因为 compose 的 build context 是 `/Volumes/LVLIAN_1T/yudao`，必须保留 Dockerfile 专属 ignore 文件：
+
+```text
+yudao-deploy/frontend/Dockerfile.dockerignore
+yudao-deploy/backend/Dockerfile.dockerignore
+```
+
+前端 ignore 文件会排除 `yudao-ui-admin-vue3/node_modules`、`.git`、`dist*` 等目录，避免构建上下文过大或把本机依赖复制进 Linux 镜像。
+后端 ignore 文件只保留 `ruoyi-vue-pro/yudao-server/target/yudao-server.jar`，用于运行镜像构建。
+
+前端 Docker 构建默认带两个参数，避免容器内生产构建内存过高：
+
+```text
+FRONTEND_NODE_OPTIONS=--max-old-space-size=1536
+FRONTEND_VITE_BUILD_EXTRA_ARGS=--minify esbuild
+```
+
+如果服务器资源充足，也可以把 `FRONTEND_VITE_BUILD_EXTRA_ARGS` 清空，让项目继续使用 `vite.config.ts` 里的默认压缩配置。
 
 本地不启动：
 
@@ -154,7 +173,7 @@ docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml u
 访问：
 
 ```text
-前端: http://127.0.0.1:8080
+前端: http://127.0.0.1:2828
 后端: http://127.0.0.1:48080
 ```
 
@@ -185,10 +204,12 @@ REDIS_HOST=host.docker.internal
 REDIS_PORT=6379
 ```
 
-服务器已有 Nginx 只需要反代到前端容器端口，例如：
+服务器部署时，前端容器发布 `0.0.0.0:2828` 作为唯一外部入口。
+容器内 Nginx 负责把 `/admin-api`、`/app-api` 等接口代理到 Docker 内部 `server:48080`。
+后端 `48080` 默认只绑定 `127.0.0.1`，不作为公网入口。
 
 ```text
-http://127.0.0.1:18080
+http://服务器IP:2828
 ```
 
 不要把 MySQL `3306` 或 Redis `6379` 暴露到公网。
@@ -208,22 +229,25 @@ Jar 内关键依赖:
   flowable-engine-7.2.0.jar
   flowable-spring-7.2.0.jar
 Docker 镜像构建: 成功
+前端 Docker 构建: 使用 Dockerfile.dockerignore 排除 node_modules/.git，使用 esbuild 压缩
 容器:
   yudao-ssh-tunnel-local Up
   yudao-server-local Up 127.0.0.1:48080->48080
-  yudao-admin-local Up 127.0.0.1:8080->80
+  yudao-admin-local Up 127.0.0.1:2828->80
 后端日志:
   {dataSource-1,master} inited
   Redisson 4.3.1
   Tomcat started on port 48080
   Started YudaoServerApplication
 前端:
-  curl -I http://127.0.0.1:8080/ -> 200 OK
-  GET http://127.0.0.1:8080/admin-api/system/dict-data/simple-list -> 200 + {"code":401,...}
+  curl -I http://127.0.0.1:2828/ -> 200 OK
+  GET http://127.0.0.1:2828/admin-api/system/dict-data/simple-list -> 200 + {"code":401,...}
 后端:
   POST http://127.0.0.1:48080/admin-api/system/captcha/get -> repCode=0000
 浏览器巡检:
   57/57 个真实菜单页面打开成功
+  doc-alert 文档提示文本残留 0
+  控制台错误 0，页面异常 0，站内 5xx 响应 0
   Nginx 无 500/502/503/504 或 upstream 连接失败
   后端无 SQL 字段缺失、Flowable、Redis 连接类硬错误
 ```

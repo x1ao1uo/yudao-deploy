@@ -42,7 +42,7 @@ REDIS_PORT=6379
 服务器 Docker 运行位置：Windows Docker Desktop / WSL Docker / Linux Docker
 服务器现有 Nginx 要代理的域名：
 服务器现有 Nginx 要代理的路径：
-服务器前端容器内网端口是否使用 18080：
+服务器前端公网入口是否使用 2828：
 服务器是否只保留公网 HTTP/HTTPS/SSH，不开放 3306/6379：
 ```
 
