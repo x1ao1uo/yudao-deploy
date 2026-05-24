@@ -82,6 +82,51 @@ git diff -- pom.xml yudao-server/pom.xml
 
 不要改全局 `doc-alert` 组件；只注释调用处。当前实测共有 `270` 个 `doc-alert` 标签，均已注释。
 
+批量处理脚本：
+
+```bash
+cd /Volumes/LVLIAN_1T/yudao/yudao-ui-admin-vue3
+node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const root = process.cwd();
+const exts = new Set(['.vue', '.ts', '.tsx', '.js', '.jsx']);
+const tagRe = /<doc-alert\b[\s\S]*?\/>/g;
+function walk(dir, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(p, out);
+    else if (entry.isFile() && exts.has(path.extname(entry.name))) out.push(p);
+  }
+  return out;
+}
+function alreadyCommented(text, start, end) {
+  return /<!--\s*$/.test(text.slice(Math.max(0, start - 20), start)) &&
+    /^\s*-->/.test(text.slice(end, Math.min(text.length, end + 20)));
+}
+let changedFiles = 0;
+let wrapped = 0;
+for (const file of walk(path.join(root, 'src'))) {
+  const text = fs.readFileSync(file, 'utf8');
+  let changed = false;
+  const next = text.replace(tagRe, (match, offset) => {
+    if (alreadyCommented(text, offset, offset + match.length)) return match;
+    changed = true;
+    wrapped++;
+    return `<!-- ${match} -->`;
+  });
+  if (changed) {
+    fs.writeFileSync(file, next);
+    changedFiles++;
+  }
+}
+console.log({ changedFiles, wrapped });
+NODE
+
+./node_modules/.bin/prettier --write $(git diff --name-only)
+```
+
 检查：
 
 ```bash
