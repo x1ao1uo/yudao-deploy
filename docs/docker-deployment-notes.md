@@ -14,6 +14,7 @@ Java 运行镜像: eclipse-temurin:latest
 前端构建镜像: node:latest
 前端运行镜像: nginx:latest
 Redis 镜像: redis:latest
+SSH 隧道镜像: ssh-tunnel-client:local，基于 alpine:latest，只安装 openssh-client
 Spring Boot: 3.5.x
 Flowable Maven artifact: 7.2.0
 服务器数据库 Flowable schema: 7.2.0.2
@@ -49,6 +50,13 @@ ssh-tunnel: 内部 SSH 隧道，不发布端口
 redis: 官方 redis:latest，Docker 内部服务，不发布端口
 server: Java 后端 yudao-server，监听 48080
 frontend: Nginx 前端，发布 2828
+```
+
+`ssh-tunnel` 不使用 Maven 镜像。它使用部署仓内的 `ssh-tunnel/Dockerfile` 构建单一功能小镜像：
+
+```dockerfile
+FROM alpine:latest
+RUN apk add --no-cache openssh-client
 ```
 
 前端容器会挂载 `frontend/nginx.conf` 到 `/etc/nginx/conf.d/default.conf`。

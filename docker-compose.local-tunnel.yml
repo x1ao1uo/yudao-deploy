@@ -3,13 +3,16 @@ name: ${COMPOSE_PROJECT_NAME:-yudao-local-tunnel}
 services:
   ssh-tunnel:
     container_name: yudao-ssh-tunnel-local
-    image: ${SSH_TUNNEL_IMAGE:-maven:latest}
+    image: ${SSH_TUNNEL_IMAGE:-ssh-tunnel-client:local}
+    build:
+      context: ./ssh-tunnel
+      dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
       - "${SSH_TUNNEL_KEY_FILE}:/root/.ssh/id_ed25519:ro"
       - "${SSH_TUNNEL_KNOWN_HOSTS_FILE}:/root/.ssh/known_hosts:ro"
     command:
-      - bash
+      - sh
       - -lc
       - >-
         chmod 700 /root/.ssh &&
