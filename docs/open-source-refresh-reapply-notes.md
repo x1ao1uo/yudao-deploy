@@ -125,6 +125,21 @@ REDIS_PORT=6379
 
 Java17 / Spring Boot 3 下，compose 必须传 `spring.data.redis.*`，不能只传老的 `spring.redis.*`。
 
+前端 Nginx 必须保留 Docker DNS 动态解析，避免后端容器重建后继续代理到旧 IP 导致 502：
+
+```text
+frontend/nginx.conf:
+  resolver 127.0.0.11 valid=10s ipv6=off;
+  set $backend server:48080;
+  proxy_pass http://$backend;
+
+docker-compose.local-tunnel.yml:
+  ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+docker-compose.server.yml:
+  ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+```
+
 ## 4. 推荐执行顺序
 
 1. 克隆后端 `master-jdk17`。
@@ -158,6 +173,8 @@ curl -sS -X POST http://127.0.0.1:48080/admin-api/system/captcha/get \
 ```text
 前端 200 OK
 后端 captcha/get 返回 repCode=0000
+前端代理 /admin-api/system/dict-data/simple-list 返回 200 + 未登录 JSON，不再 502
+真实浏览器菜单巡检 57/57 通过，控制台错误 0
 ```
 
 `repCode=0000` 表示后端、MySQL、Redis、验证码缓存链路都已经可用。
