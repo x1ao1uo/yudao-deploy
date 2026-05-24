@@ -11,4 +11,4 @@ ENV ARGS=""
 
 EXPOSE 48080
 
-CMD java ${JAVA_OPTS} -jar app.jar ${ARGS}
+CMD ["sh", "-c", "exec java ${JAVA_OPTS} -jar app.jar ${ARGS}"]
