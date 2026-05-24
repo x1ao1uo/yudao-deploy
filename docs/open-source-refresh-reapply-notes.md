@@ -168,7 +168,100 @@ NODE
 { total: 270, bareCount: 0 }
 ```
 
-## 3. 部署层：Java17 和 Docker 隧道
+## 3. 前端：登录页、首页、右上角菜单定制
+
+这些是当前业务界面需要长期保留的前端定制。重新克隆前端后，按文件逐项重做，保持改动集中，不改全局组件。
+
+### 3.1 应用标题和登录默认值
+
+`.env`：
+
+```dotenv
+VITE_APP_TITLE=南山小平台
+VITE_APP_DEFAULT_LOGIN_TENANT = 南山
+VITE_APP_DEFAULT_LOGIN_USERNAME =
+VITE_APP_DEFAULT_LOGIN_PASSWORD =
+```
+
+说明：
+
+1. 登录租户固定为 `南山`，但登录页不展示租户输入框。
+2. 用户名和密码默认保持空，避免从本地缓存回填旧账号密码。
+
+### 3.2 登录页只保留账号密码登录
+
+`src/views/Login/Login.vue`：
+
+1. 注释左侧欢迎语下面的 `{{ t('login.message') }}`，即“开箱即用的中后台管理系统”。
+2. 登录区只渲染 `LoginForm` 和 `ForgetPasswordForm`。
+3. 注释或移除 `MobileForm`、`QrCodeForm`、`RegisterForm`、`SSOLoginVue` 的模板调用和未使用 import。
+
+`src/views/Login/components/LoginForm.vue`：
+
+1. 注释租户输入框 `<el-form-item ... prop="tenantName">`。
+2. 注释底部“手机登录 / 二维码登录 / 注册”三按钮。
+3. 注释“其他登录方式”的分割线和 4 个社交登录图标。
+4. 注释“萌新必读”的分割线和 4 个链接：`开发指南`、`视频教程`、`面试手册`、`外包咨询`。
+5. 不再调用登录缓存回填逻辑，确保用户名和密码冷启动为空。
+6. 保留 `loginData.loginForm.tenantName = import.meta.env.VITE_APP_DEFAULT_LOGIN_TENANT || ''`，让隐藏租户仍参与登录前获取 tenant-id。
+
+### 3.3 首页只保留顶部欢迎统计卡
+
+`src/views/Home/Index.vue`：
+
+只保留顶部欢迎统计卡：
+
+```text
+你好 z1nt 祝你开心每一天!
+今日晴，20℃ - 32℃！
+项目数 40
+待办 10
+项目访问 2,340
+```
+
+移除或不再渲染下方项目动态、快捷入口、通知公告、图表等面板。
+
+### 3.4 右上角用户菜单隐藏项目文档
+
+`src/layout/components/UserInfo/src/UserInfo.vue`：
+
+1. 注释 `toDocument()`。
+2. 注释用户下拉菜单里的 `项目文档` 菜单项。
+3. 保留 `个人中心`、`锁定屏幕`、`退出系统`。
+
+### 3.5 前端定制验证
+
+本次验证过的命令：
+
+```bash
+cd /Volumes/LVLIAN_1T/yudao/yudao-ui-admin-vue3
+git diff --check
+./node_modules/.bin/prettier --check \
+  src/views/Login/Login.vue \
+  src/views/Login/components/LoginForm.vue \
+  src/views/Home/Index.vue \
+  src/layout/components/UserInfo/src/UserInfo.vue
+```
+
+重新构建前端容器：
+
+```bash
+cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml build frontend
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --no-deps --force-recreate frontend
+```
+
+浏览器验证要点：
+
+1. `http://127.0.0.1:2828/login?redirect=/index` 标题为 `南山小平台 - 登录`。
+2. 登录页可见输入只有用户名、密码和“记住我”，没有可见租户输入。
+3. 用户名、密码冷启动为空。
+4. 登录页不显示“开箱即用的中后台管理系统”、手机登录、二维码登录、注册、其他登录方式、开发指南、视频教程、面试手册、外包咨询。
+5. 使用 `南山 + admin + 正确密码` 可登录进入 `/index`。
+6. 首页只显示顶部欢迎统计卡，不显示项目动态、快捷操作、通知公告等下方模块。
+7. 右上角用户下拉菜单只显示 `个人中心`、`锁定屏幕`、`退出系统`，不显示 `项目文档`。
+
+## 4. 部署层：Java17 和 Docker 隧道
 
 部署层必须保留 Java17：
 
@@ -210,18 +303,19 @@ docker-compose.server.yml:
   ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 ```
 
-## 4. 推荐执行顺序
+## 5. 推荐执行顺序
 
 1. 克隆后端 `master-jdk17`。
 2. 同步或克隆前端。
 3. 打开后端 BPM module 和 server dependency。
 4. 注释前端全部 `doc-alert` 文档提示。
-5. 在 `yudao-deploy` 构建后端 jar。
-6. 启动本地 Docker compose。
-7. 检查 `ssh-tunnel`、`server`、`frontend` 都为 Up。
-8. 看后端日志是否出现 `Started YudaoServerApplication`。
+5. 恢复登录页、首页、右上角用户菜单定制。
+6. 在 `yudao-deploy` 构建后端 jar。
+7. 启动本地 Docker compose。
+8. 检查 `ssh-tunnel`、`server`、`frontend` 都为 Up。
+9. 看后端日志是否出现 `Started YudaoServerApplication`。
 
-## 5. 验证命令
+## 6. 验证命令
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
@@ -245,6 +339,7 @@ curl -sS -X POST http://127.0.0.1:48080/admin-api/system/captcha/get \
 后端 captcha/get 返回 repCode=0000
 前端代理 /admin-api/system/dict-data/simple-list 返回 200 + 未登录 JSON，不再 502
 真实浏览器菜单巡检 57/57 通过，控制台错误 0，页面异常 0，站内 5xx 响应 0，doc-alert 文档提示文本残留 0
+登录页、首页、右上角用户菜单定制均已通过 Playwright 真实浏览器验证
 ```
 
 `repCode=0000` 表示后端、MySQL、Redis、验证码缓存链路都已经可用。
