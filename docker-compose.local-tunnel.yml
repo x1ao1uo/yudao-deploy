@@ -38,8 +38,8 @@ services:
       - yudao
 
   server:
-    container_name: yudao-server-local
-    image: ${SERVER_IMAGE:-yudao-server:local-tunnel}
+    container_name: yudao-backend-local
+    image: ${SERVER_IMAGE:-yudao-backend:local-tunnel}
     build:
       context: ..
       dockerfile: yudao-deploy/backend/Dockerfile
@@ -74,8 +74,8 @@ services:
       - yudao
 
   frontend:
-    container_name: yudao-admin-local
-    image: ${FRONTEND_IMAGE:-yudao-admin:local-tunnel}
+    container_name: yudao-frontend-local
+    image: ${FRONTEND_IMAGE:-yudao-frontend:local-tunnel}
     build:
       context: ..
       dockerfile: yudao-deploy/frontend/Dockerfile

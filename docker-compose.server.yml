@@ -2,8 +2,8 @@ name: ${COMPOSE_PROJECT_NAME:-yudao-server}
 
 services:
   server:
-    container_name: yudao-server
-    image: ${SERVER_IMAGE:-yudao-server:server}
+    container_name: yudao-backend
+    image: ${SERVER_IMAGE:-yudao-backend:server}
     build:
       context: ..
       dockerfile: yudao-deploy/backend/Dockerfile
@@ -35,8 +35,8 @@ services:
       - yudao
 
   frontend:
-    container_name: yudao-admin
-    image: ${FRONTEND_IMAGE:-yudao-admin:server}
+    container_name: yudao-frontend
+    image: ${FRONTEND_IMAGE:-yudao-frontend:server}
     build:
       context: ..
       dockerfile: yudao-deploy/frontend/Dockerfile

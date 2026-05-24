@@ -247,8 +247,8 @@ Docker 镜像构建: 成功
 前端 Docker 构建: 使用 Dockerfile.dockerignore 排除 node_modules/.git，使用 esbuild 压缩
 容器:
   yudao-ssh-tunnel-local Up
-  yudao-server-local Up 127.0.0.1:48080->48080
-  yudao-admin-local Up 127.0.0.1:2828->80
+  yudao-backend-local Up 127.0.0.1:48080->48080
+  yudao-frontend-local Up 127.0.0.1:2828->80
 后端日志:
   {dataSource-1,master} inited
   Redisson 4.3.1

@@ -18,8 +18,8 @@ env_value() {
 
 SERVER_IMAGE="$(env_value SERVER_IMAGE)"
 FRONTEND_IMAGE="$(env_value FRONTEND_IMAGE)"
-SERVER_IMAGE="${SERVER_IMAGE:-yudao-server:local-tunnel}"
-FRONTEND_IMAGE="${FRONTEND_IMAGE:-yudao-admin:local-tunnel}"
+SERVER_IMAGE="${SERVER_IMAGE:-yudao-backend:local-tunnel}"
+FRONTEND_IMAGE="${FRONTEND_IMAGE:-yudao-frontend:local-tunnel}"
 
 has_local_images() {
   docker image inspect "$SERVER_IMAGE" "$FRONTEND_IMAGE" >/dev/null 2>&1
