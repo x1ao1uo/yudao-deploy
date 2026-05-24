@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:latest
 
 WORKDIR /yudao-server
 

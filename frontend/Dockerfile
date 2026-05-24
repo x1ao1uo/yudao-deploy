@@ -1,9 +1,9 @@
-FROM node:22-alpine AS build
+FROM node:latest AS build
 
 WORKDIR /app
 
 ARG PNPM_VERSION=9.15.9
-RUN corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate
+RUN npm install -g "pnpm@${PNPM_VERSION}"
 
 ARG FRONTEND_NODE_OPTIONS=--max-old-space-size=1536
 ENV NODE_OPTIONS=${FRONTEND_NODE_OPTIONS}
@@ -41,7 +41,7 @@ RUN printf '%s\n' \
 
 RUN pnpm exec vite build --mode docker ${FRONTEND_VITE_BUILD_EXTRA_ARGS}
 
-FROM nginx:1.27-alpine
+FROM nginx:latest
 
 COPY yudao-deploy/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist-docker /usr/share/nginx/html

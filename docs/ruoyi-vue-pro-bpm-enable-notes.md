@@ -86,14 +86,14 @@ Flowable 6.x -> Flowable 7.x
 
 ## 构建要求
 
-部署层必须使用 Java17：
+本地体验版按用户偏好使用官方 `latest` 镜像。后端源码仍然必须是 `master-jdk17` 分支；镜像标签使用 latest 是运行/构建底座策略，不代表改后端源码分支。
 
 ```text
 /Volumes/LVLIAN_1T/yudao/yudao-deploy/scripts/build-backend-jar-with-docker.sh
-  maven:3.9.9-eclipse-temurin-17
+  maven:latest
 
 /Volumes/LVLIAN_1T/yudao/yudao-deploy/backend/Dockerfile
-  eclipse-temurin:17-jre
+  eclipse-temurin:latest
 ```
 
 构建：
@@ -122,7 +122,7 @@ flowable-spring-7.2.0.jar
 
 ```bash
 cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --build
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --pull always --build --force-recreate
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=200 server
 ```
 

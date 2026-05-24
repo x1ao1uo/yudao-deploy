@@ -6,7 +6,7 @@ DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROOT_DIR="$(cd "$DEPLOY_DIR/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/ruoyi-vue-pro"
 M2_DIR="${M2_DIR:-$HOME/.m2}"
-MAVEN_IMAGE="${MAVEN_IMAGE:-maven:3.9.9-eclipse-temurin-17}"
+MAVEN_IMAGE="${MAVEN_IMAGE:-maven:latest}"
 
 if [[ ! -f "$BACKEND_DIR/pom.xml" ]]; then
   echo "找不到后端 pom.xml: $BACKEND_DIR/pom.xml" >&2

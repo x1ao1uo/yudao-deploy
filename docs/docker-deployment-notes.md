@@ -9,12 +9,17 @@
 ```text
 后端仓库: YunaiV/ruoyi-vue-pro.git
 后端分支: master-jdk17
-Java 构建镜像: maven:3.9.9-eclipse-temurin-17
-Java 运行镜像: eclipse-temurin:17-jre
+Java 构建镜像: maven:latest
+Java 运行镜像: eclipse-temurin:latest
+前端构建镜像: node:latest
+前端运行镜像: nginx:latest
+Redis 镜像: redis:latest
 Spring Boot: 3.5.x
 Flowable Maven artifact: 7.2.0
 服务器数据库 Flowable schema: 7.2.0.2
 ```
+
+`node:latest` 当前不假设内置 `corepack`，前端 Dockerfile 使用官方 Node 镜像自带的 `npm` 安装固定版本 `pnpm`。
 
 `7.2.0.2` 是数据库 schema 版本，不是 Maven 依赖版本；依赖版本使用项目里的 `flowable.version=7.2.0`。
 
@@ -29,19 +34,20 @@ Flowable Maven artifact: 7.2.0
 
 ## 本地 Docker 架构
 
-本地开发连接真实服务器上的 MySQL/Redis，但不在 Mac 上直接发布数据库端口给 Docker 使用。当前 compose 使用 Docker 内部 sidecar：
+本地开发连接真实服务器上的 MySQL，但不在 Mac 上直接发布数据库端口给 Docker 使用。Redis 使用本地 Docker 容器。当前 compose 使用 Docker 内部 sidecar 只转发 MySQL：
 
 ```text
 frontend -> server:48080
 server   -> ssh-tunnel:3306 -> SSH -> 服务器 127.0.0.1:3306
-server   -> ssh-tunnel:6379 -> SSH -> 服务器 127.0.0.1:6379
+server   -> redis:6379
 ```
 
 本地启动的服务：
 
 ```text
 ssh-tunnel: 内部 SSH 隧道，不发布端口
-server: Java17 后端 yudao-server，监听 48080
+redis: 官方 redis:latest，Docker 内部服务，不发布端口
+server: Java 后端 yudao-server，监听 48080
 frontend: Nginx 前端，发布 2828
 ```
 
@@ -80,7 +86,6 @@ FRONTEND_DEFAULT_LOGIN_PASSWORD=
 
 ```text
 MySQL 容器
-Redis 容器
 单独 BPM 容器
 ```
 
@@ -91,7 +96,7 @@ Redis 容器
 ```text
 MASTER_DATASOURCE_URL=jdbc:mysql://ssh-tunnel:3306/ruoyi-vue-pro?...
 SLAVE_DATASOURCE_URL=jdbc:mysql://ssh-tunnel:3306/ruoyi-vue-pro?...
-REDIS_HOST=ssh-tunnel
+REDIS_HOST=redis
 REDIS_PORT=6379
 ```
 
@@ -157,13 +162,13 @@ cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 这个脚本必须使用：
 
 ```text
-maven:3.9.9-eclipse-temurin-17
+maven:latest
 ```
 
 运行镜像必须使用：
 
 ```text
-eclipse-temurin:17-jre
+eclipse-temurin:latest
 ```
 
 ## 启动本地部署
@@ -176,7 +181,7 @@ cd /Volumes/LVLIAN_1T/yudao/yudao-deploy
 或直接：
 
 ```bash
-docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --build
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml up -d --pull always --build --force-recreate
 ```
 
 访问：
@@ -191,6 +196,7 @@ docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml u
 ```bash
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml ps
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 ssh-tunnel
+docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 redis
 docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml logs --tail=120 server
 ```
 

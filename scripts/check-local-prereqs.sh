@@ -43,7 +43,7 @@ if [[ -f "$ENV_FILE" ]]; then
 else
   echo "缺少: $ENV_FILE" >&2
   echo "请执行: cp .env.local-tunnel.example .env.local-tunnel" >&2
-  echo "然后填入真实 MySQL/Redis 信息。" >&2
+  echo "然后填入真实 MySQL 信息。" >&2
   failures=$((failures + 1))
 fi
 

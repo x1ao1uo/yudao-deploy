@@ -7,8 +7,8 @@ DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 "$SCRIPT_DIR/check-local-prereqs.sh"
 
 cd "$DEPLOY_DIR"
-COMPOSE_PULL_POLICY="${COMPOSE_PULL_POLICY:-never}"
-YUDAO_BUILD_IMAGES="${YUDAO_BUILD_IMAGES:-auto}"
+COMPOSE_PULL_POLICY="${COMPOSE_PULL_POLICY:-always}"
+YUDAO_BUILD_IMAGES="${YUDAO_BUILD_IMAGES:-true}"
 COMPOSE_ARGS=(--env-file .env.local-tunnel -f docker-compose.local-tunnel.yml)
 
 env_value() {
@@ -39,7 +39,7 @@ case "$YUDAO_BUILD_IMAGES" in
     docker compose "${COMPOSE_ARGS[@]}" up -d --no-build
     ;;
   1|true|True|yes|Yes)
-    docker compose "${COMPOSE_ARGS[@]}" up -d --build --pull "$COMPOSE_PULL_POLICY"
+    docker compose "${COMPOSE_ARGS[@]}" up -d --build --pull "$COMPOSE_PULL_POLICY" --force-recreate
     ;;
   *)
     echo "YUDAO_BUILD_IMAGES 只能是 auto、true 或 false，当前值: $YUDAO_BUILD_IMAGES" >&2

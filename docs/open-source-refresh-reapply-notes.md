@@ -285,20 +285,25 @@ docker compose --env-file .env.local-tunnel -f docker-compose.local-tunnel.yml u
 6. 首页只显示顶部欢迎统计卡，不显示项目动态、快捷操作、通知公告等下方模块。
 7. 右上角用户下拉菜单只显示 `个人中心`、`锁定屏幕`、`退出系统`，不显示 `项目文档`。
 
-## 4. 部署层：Java17 和 Docker 隧道
+## 4. 部署层：官方 latest 镜像、本地 MySQL 隧道和 Redis 容器
 
-部署层必须保留 Java17：
+本地体验版按用户偏好使用官方 `latest` 镜像：
 
 ```text
-backend/Dockerfile: eclipse-temurin:17-jre
-scripts/build-backend-jar-with-docker.sh: maven:3.9.9-eclipse-temurin-17
+frontend/Dockerfile build stage: node:latest
+frontend/Dockerfile runtime: nginx:latest
+backend/Dockerfile runtime: eclipse-temurin:latest
+scripts/build-backend-jar-with-docker.sh: maven:latest
+docker-compose.local-tunnel.yml redis: redis:latest
 ```
 
-本地开发 compose 使用 `ssh-tunnel` sidecar：
+`scripts/start-local-tunnel-stack.sh` 默认每次启动执行 `--pull always --build --force-recreate`，用于拉取官方最新镜像并重建本地容器。
+
+本地开发 compose 使用 `ssh-tunnel` sidecar 只转发 MySQL，Redis 使用本地 Docker 容器：
 
 ```text
 ssh-tunnel:3306 -> 服务器 127.0.0.1:3306
-ssh-tunnel:6379 -> 服务器 127.0.0.1:6379
+redis:6379 -> 本地 Docker redis:latest
 ```
 
 本地 `.env.local-tunnel` 应使用：
@@ -306,7 +311,7 @@ ssh-tunnel:6379 -> 服务器 127.0.0.1:6379
 ```text
 MASTER_DATASOURCE_URL=jdbc:mysql://ssh-tunnel:3306/ruoyi-vue-pro?...
 SLAVE_DATASOURCE_URL=jdbc:mysql://ssh-tunnel:3306/ruoyi-vue-pro?...
-REDIS_HOST=ssh-tunnel
+REDIS_HOST=redis
 REDIS_PORT=6379
 ```
 
