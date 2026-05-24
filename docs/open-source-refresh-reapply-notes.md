@@ -172,21 +172,45 @@ NODE
 
 这些是当前业务界面需要长期保留的前端定制。重新克隆前端后，按文件逐项重做，保持改动集中，不改全局组件。
 
-### 3.1 应用标题和登录默认值
+### 3.1 部署环境变量：应用标题和登录默认值
 
-`.env`：
+不要修改前端开源仓根目录的 `.env` 作为部署配置来源。`yudao-ui-admin-vue3` 是 Vite 项目，`VITE_*` 变量会在前端构建时写进静态资源；Docker/Nginx 容器运行后再改容器环境变量，不会自动改变已经构建好的页面。
+
+正确做法是在 `yudao-deploy` 里通过 compose build args 生成 `.env.docker`。
+
+本地隧道部署改：
+
+```text
+yudao-deploy/.env.local-tunnel
+```
+
+服务器部署改：
+
+```text
+yudao-deploy/.env.server
+```
+
+需要保留的变量：
 
 ```dotenv
-VITE_APP_TITLE=南山小平台
-VITE_APP_DEFAULT_LOGIN_TENANT = 南山
-VITE_APP_DEFAULT_LOGIN_USERNAME =
-VITE_APP_DEFAULT_LOGIN_PASSWORD =
+FRONTEND_APP_TITLE=南山小平台
+FRONTEND_DEFAULT_LOGIN_TENANT=南山
+FRONTEND_DEFAULT_LOGIN_USERNAME=
+FRONTEND_DEFAULT_LOGIN_PASSWORD=
 ```
 
 说明：
 
 1. 登录租户固定为 `南山`，但登录页不展示租户输入框。
 2. 用户名和密码默认保持空，避免从本地缓存回填旧账号密码。
+3. `frontend/Dockerfile` 必须把这些 build args 写入 `.env.docker`：
+
+```dotenv
+VITE_APP_TITLE=${VITE_APP_TITLE}
+VITE_APP_DEFAULT_LOGIN_TENANT=${VITE_APP_DEFAULT_LOGIN_TENANT}
+VITE_APP_DEFAULT_LOGIN_USERNAME=${VITE_APP_DEFAULT_LOGIN_USERNAME}
+VITE_APP_DEFAULT_LOGIN_PASSWORD=${VITE_APP_DEFAULT_LOGIN_PASSWORD}
+```
 
 ### 3.2 登录页只保留账号密码登录
 

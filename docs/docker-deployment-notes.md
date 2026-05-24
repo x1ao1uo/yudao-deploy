@@ -65,6 +65,15 @@ FRONTEND_NODE_OPTIONS=--max-old-space-size=1536
 FRONTEND_VITE_BUILD_EXTRA_ARGS=--minify esbuild
 ```
 
+前端 Vite 变量是构建时变量，部署时通过 `yudao-deploy` 的 `.env.local-tunnel` / `.env.server` 注入，不通过修改 `yudao-ui-admin-vue3/.env` 完成：
+
+```text
+FRONTEND_APP_TITLE=南山小平台
+FRONTEND_DEFAULT_LOGIN_TENANT=南山
+FRONTEND_DEFAULT_LOGIN_USERNAME=
+FRONTEND_DEFAULT_LOGIN_PASSWORD=
+```
+
 如果服务器资源充足，也可以把 `FRONTEND_VITE_BUILD_EXTRA_ARGS` 清空，让项目继续使用 `vite.config.ts` 里的默认压缩配置。
 
 本地不启动：
