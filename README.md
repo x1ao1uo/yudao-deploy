@@ -2,6 +2,22 @@
 
 这个目录是当前环境专用的 Docker 部署适配层。后端和前端仍然保留在各自上游仓库里，部署、隧道、环境变量和运行文档集中放在这里。
 
+## 前置要求：克隆仓库
+
+进行修改操作前，必须先克隆以下两个仓库，并切换到对应分支：
+
+```bash
+# 克隆后端（使用 master-jdk17 分支）
+cd /Volumes/LVLIAN_1T/yudao
+git clone --branch master-jdk17 --single-branch https://github.com/YunaiV/ruoyi-vue-pro.git
+cd ruoyi-vue-pro
+
+# 克隆前端（使用 master 分支）
+cd /Volumes/LVLIAN_1T/yudao
+git clone --branch master --single-branch https://github.com/YunaiV/yudao-ui-admin-vue3.git
+cd yudao-ui-admin-vue3
+```
+
 ## 当前正确基线
 
 后端必须使用 `YunaiV/ruoyi-vue-pro.git` 的 `master-jdk17` 分支，不要使用默认 `master` 分支。
