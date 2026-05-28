@@ -114,7 +114,7 @@ REDIS_PORT=6379
 SSH_TUNNEL_HOST=120.236.17.146
 SSH_TUNNEL_PORT=2222
 SSH_TUNNEL_USER=Administrator
-SSH_TUNNEL_KEY_FILE=/Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/keys/ssh_tunnel_120_236_17_146
+SSH_TUNNEL_KEY_FILE=/Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/keys/id_ed25519_120_236_17_146
 SSH_TUNNEL_KNOWN_HOSTS_FILE=/Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/known_hosts
 ```
 

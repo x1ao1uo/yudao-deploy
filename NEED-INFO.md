@@ -13,7 +13,7 @@ Redis 密码: 无
 Redis DB 编号: 0
 SSH 隧道端口: 2222
 SSH 用户: Administrator
-SSH 私钥: /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/keys/ssh_tunnel_120_236_17_146
+SSH 私钥: /Volumes/LVLIAN_1T/code/ssh-tunnel-config/客户端/mac/keys/id_ed25519_120_236_17_146
 ```
 
 ## 本地 Docker 数据链路
