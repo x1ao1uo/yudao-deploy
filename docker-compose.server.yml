@@ -5,8 +5,8 @@ services:
     container_name: yudao-backend
     image: ${SERVER_IMAGE:-yudao-backend:server}
     build:
-      context: ..
-      dockerfile: yudao-deploy/backend/Dockerfile
+      context: ../../github
+      dockerfile: ruoyi-vue-pro/backend/Dockerfile
       args:
         SERVER_JAR: ruoyi-vue-pro/yudao-server/target/yudao-server.jar
     restart: unless-stopped
@@ -38,8 +38,8 @@ services:
     container_name: yudao-frontend
     image: ${FRONTEND_IMAGE:-yudao-frontend:server}
     build:
-      context: ..
-      dockerfile: yudao-deploy/frontend/Dockerfile
+      context: ../../github
+      dockerfile: yudao-ui-admin-vue3/Dockerfile
       args:
         VITE_BASE_URL: ${FRONTEND_VITE_BASE_URL:-}
         VITE_API_URL: ${FRONTEND_VITE_API_URL:-/admin-api}
